@@ -38,8 +38,6 @@ def rate_dist(params):
     with np.load(params["input_dir"]) as d:
         D = d['arr_0'].item()['train']
         data = D.images
-    if params["unwhiten"] == True:
-        data = np.matmul(data, np.linalg.inv(D.w_filter)) + D.patch_means
     for m in params["mod_names"]:
         for n in params["n_neurons"]:
             for c in params["costs"]:
@@ -63,8 +61,6 @@ def rate_dist(params):
                             reconstructions = invert_rg(discretized_coeffs.T, radial_scalings, p_whitening).T
                         else: 
                             reconstructions = np.matmul(discretized_coeffs, weights.T)
-                        if params["unwhiten"] == True:
-                            reconstructions = np.matmul(reconstructions, np.linalg.inv(D.w_filter)) + D.patch_means
                         mse_per_img = np.mean(((data - reconstructions) ** 2), axis=1)
                         error = np.mean(mse_per_img)
                         error_sd = np.std(mse_per_img)

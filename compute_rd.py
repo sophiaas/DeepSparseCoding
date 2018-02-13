@@ -11,7 +11,6 @@ params = {
     "version": None,
     # RD params
     "disc_type": 'uniform', # 'uniform' or 'vq'
-    "unwhiten": False, 
     "n_bins": [1, 2, 3, 4, 5, 7, 10, 15, 20, 30, 40, 50, 100, 500, 1000],
     "print": True,
     # Directories
