@@ -26,7 +26,7 @@ def make_legend_labels(rd_table):
     labels = {x: labels[x] for x in range(0,6)}
     return labels
 
-def full_comparison_plots(lca_table, ica_table=None, pca_table=None, rnd_table=None, sym_table=None, x='entropy', y='mse', ylim=.4, xlim=5, row='n_neurons', col='cost', hue='lambda', title=None):
+def full_comparison_plots(lca_table, alt_1=None, alt_2=None, alt_3=None, alt_4=None, x='entropy', y='mse', ylim=.4, xlim=5, row='n_neurons', col='cost', hue='lambda', title=None):
     if hue == 'lambda':
         labels_key = make_legend_labels(lca_table)
     p = sns.lmplot(x, y, data=lca_table.where(lca_table.n_bins>1), row=row, col=col,  hue=hue, fit_reg=False, scatter_kws={"s": 3})
@@ -43,14 +43,14 @@ def full_comparison_plots(lca_table, ica_table=None, pca_table=None, rnd_table=N
             handles, labels = a.get_legend_handles_labels()
             labels = ['p_active: ' + str(labels_key[idx][i]) for i, x in enumerate(labels[0:5])]     
             a.legend(handles, labels)
-        if ica_table is not None:
-            a.plot(ica_table[x], ica_table[y].where(ica_table.n_bins>1), marker=".", color="black", linestyle="dashed")
-        if pca_table is not None:
-            a.plot(pca_table[x], pca_table[y].where(pca_table.n_bins>1), marker="+", color="black", linestyle="dotted") 
-        if rnd_table is not None:
-            a.plot(rnd_table[x], rnd_table[y].where(rnd_table.n_bins>1), marker="^", color="black", linestyle=":", ms=2) 
-        if sym_table is not None:
-            a.plot(sym_table[x], sym_table[y].where(sym_table.n_bins>1), marker="s", color="black", linestyle="-.", ms=2) 
+        if alt_1 is not None:
+            a.plot(alt_1[x], alt_1[y].where(alt_1.n_bins>1), marker=".", color="black", linestyle="dashed")
+        if alt_2 is not None:
+            a.plot(alt_2[x], alt_2[y].where(alt_2.n_bins>1), marker="+", color="black", linestyle="dotted") 
+        if alt_3 is not None:
+            a.plot(alt_3[x], alt_3[y].where(alt_3.n_bins>1), marker="^", color="black", linestyle=":", ms=2) 
+        if alt_4 is not None:
+            a.plot(alt_4[x], alt_4[y].where(alt_4.n_bins>1), marker="s", color="black", linestyle="-.", ms=2) 
             
 def plot_coeff_hists(params):
     fig, axes = plt.subplots(nrows=len(params["lams"]), ncols=len(params["costs"]), figsize=params["figsize"])
@@ -58,7 +58,7 @@ def plot_coeff_hists(params):
         for n in params["n_neurons"]:
             for j, c in enumerate(params["costs"]):
                 for i, l in enumerate(params["lams"]):
-                    mod_label = m+'_'+str(n)+'_'+c+'_'+l
+                    mod_label = m+'_'+str(n)+'_'+c+'_'+l+'_'+params['version']
                     with np.load(params["out_dir"]+'coeffs/'+mod_label+'_coeffs.npz') as d:  
                         coeffs = d['arr_0']
                     axes[i][j].hist(coeffs[0:1000].ravel(), bins=100)

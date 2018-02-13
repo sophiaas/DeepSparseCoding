@@ -17,7 +17,7 @@ def discretize_coeffs(coeffs, num_bins, disc_type='uniform'):
     for idx, row in enumerate(coeffs.T):
         if disc_type == 'uniform':
             hist, b_edges = np.histogram(row, num_bins)
-            b = [np.mean([b_edges[idx], b_edges[idx+1]]) for idx in range(len(b_edges)-1)] + [b_edges[-1]]    
+            b = [np.mean([b_edges[idx], b_edges[idx+1]]) for idx in range(len(b_edges)-1)] + [b_edges[-1]] 
             b_idxs = np.digitize(row, b_edges) - 1
             disc = [b[idx] for idx in b_idxs]
             discretized_coeffs[:, idx] = disc
@@ -71,6 +71,7 @@ def rate_dist(params):
                         sig_noise = np.mean(10 * np.log10(1 / mse_per_img)) 
                         rate_distortion = np.vstack((rate_distortion, np.array([name, coeffs.shape[1], over, c, l, active, error, error_sd,  np.log(error), sig_noise, H, H * over, b])))
                         df = pd.DataFrame(rate_distortion[1:], columns=rate_distortion[0])
-                        print(df) if params["print"]
+                        if params["print"]:
+                            print(df) 
                         df.to_pickle(params["save_name"])  
     return df
