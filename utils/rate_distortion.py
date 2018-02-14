@@ -34,7 +34,7 @@ def discretize_coeffs(coeffs, num_bins, disc_type='uniform'):
     return discretized_coeffs, H
 
 def rate_dist(params):
-    rate_distortion = np.array(["model", "n_neurons", "overcompleteness", "cost", "lambda", "p_active", "mse", "mse_sd", "log_mse", "psnr", "entropy", "transmission_rate", "nbins"], dtype="object")
+    rate_distortion = np.array(["model", "n_neurons", "overcompleteness", "cost", "lambda", "p_active", "mse", "mse_sd", "log_mse", "entropy", "transmission_rate", "nbins"], dtype="object")
     with np.load(params["input_dir"]) as d:
         D = d['arr_0'].item()['train']
         data = D.images
@@ -64,8 +64,7 @@ def rate_dist(params):
                         mse_per_img = np.mean(((data - reconstructions) ** 2), axis=1)
                         error = np.mean(mse_per_img)
                         error_sd = np.std(mse_per_img)
-                        sig_noise = np.mean(10 * np.log10(1 / mse_per_img)) 
-                        rate_distortion = np.vstack((rate_distortion, np.array([name, coeffs.shape[1], over, c, l, active, error, error_sd,  np.log(error), sig_noise, H, H * over, b])))
+                        rate_distortion = np.vstack((rate_distortion, np.array([name, coeffs.shape[1], over, c, l, active, error, error_sd,  np.log(error), H, H * over, b])))
                         df = pd.DataFrame(rate_distortion[1:], columns=rate_distortion[0])
                         if params["print"]:
                             print(df) 
