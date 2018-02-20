@@ -26,6 +26,7 @@ def discretize_coeffs(coeffs, num_bins, disc_type='uniform'):
             code, dist = vq.vq(row, codebook)
             disc = [codebook[i] for i in code]
             discretized_coeffs[:, idx] = disc
+            hist, b_edges = np.histogram(discretized_coeffs, num_bins)
         else:
             raise ValueError("Undefined disc_type")  
         distribution = hist/np.sum(hist)
