@@ -4,6 +4,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import utils.data_processing as dp
 import utils.rate_distortion as rd
+import utils.log_parser as lp
 import pandas as pd
 import seaborn as sns
 import h5py
@@ -75,25 +76,25 @@ def plot_coeff_hists(params):
                     
 def batch_plot_model_grads(params):
     global_batch_index = []; gradients = []; key = []; model = []; lam = []; cost = []
-    for m in params["mod_names"]:
-        for n in params["n_neurons"]:
-            for c in params["costs"]:
-                for idx, l in enumerate(params["lams"]):
-                    mod_label = m+'_'+str(n)+'_'+c+'_'+l+'_'+params["version"] if m == 'lca' else m
-                    log = lp.read_stats(lp.load_file(params["out_dir"]+mod_label+'/logfiles/'+mod_label+'.log')) 
-                    global_batch_index.extend(log['global_batch_index'])
-                    global_batch_index.extend(log['global_batch_index'])
-                    if m == "lca":
-                        weights_max = log['phi_max_grad'] 
-                        weights_min = log['phi_min_grad']
-                    elif m == "ica":
-                        weights_max = log['a_max_grad'] 
-                        weights_min = log['a_min_grad']
-                    gradients.extend(weights_max + weights_min)
-                    model.extend([mod_label] * 2 * len(weights_max))
-                    key.extend(['max'] * len(weights_max) + ['min'] * len(weights_min))
-                    cost.extend([c] * 2 * len(weights_max))
-                    lam.extend([l] * 2 * len(weights_max))
+    m = params["model_type"]
+    for n in params["n_neurons"]:
+        for c in params["costs"]:
+            for idx, l in enumerate(params["lams"]):
+                mod_label = m+'_'+str(n)+'_'+c+'_'+l+'_'+params["version"] if m == 'lca' else m
+                log = lp.read_stats(lp.load_file(params["out_dir"]+mod_label+'/logfiles/'+mod_label+'.log')) 
+                global_batch_index.extend(log['global_batch_index'])
+                global_batch_index.extend(log['global_batch_index'])
+                if m == "lca":
+                    weights_max = log['phi_max_grad'] 
+                    weights_min = log['phi_min_grad']
+                elif m == "ica":
+                    weights_max = log['a_max_grad'] 
+                    weights_min = log['a_min_grad']
+                gradients.extend(weights_max + weights_min)
+                model.extend([mod_label] * 2 * len(weights_max))
+                key.extend(['max'] * len(weights_max) + ['min'] * len(weights_min))
+                cost.extend([c] * 2 * len(weights_max))
+                lam.extend([l] * 2 * len(weights_max))
     stats = pd.DataFrame({'model': model, 'global_batch_index': global_batch_index, 'gradients': gradients, 'key': key, 'cost': cost, 'lambda': lam})
     sns.set_style("darkgrid")
     if m == "lca":
@@ -101,36 +102,38 @@ def batch_plot_model_grads(params):
     else: 
         p = sns.lmplot('global_batch_index', 'gradients', data=stats, hue='key', lowess=True, scatter_kws={"s": 3})
     p.map(plt.plot, 'global_batch_index', 'gradients', marker="o", ms=2)
+    return global_batch_index[-1]
     
 def batch_plot_model_loss(params):
     global_batch_index = []; activity = []; loss = []; key = []; model = []; lam = []; cost = []
-    for m in params["mod_names"]:
-        for n in params["n_neurons"]:
-            for c in params["costs"]:
-                for idx, l in enumerate(params["lams"]):
-                    mod_label = m+'_'+str(n)+'_'+c+'_'+l+'_'+params["version"] if m == 'lca' else m
-                    log = lp.read_stats(lp.load_file(params["out_dir"]+mod_label+'/logfiles/'+mod_label+'.log')) 
-                    global_batch_index.extend(list(log['global_batch_index'])*3)
-                    loss.extend(log['total_loss'] + log['recon_loss'] + log['sparse_loss'])
-                    model.extend([mod_label] * 3 * len(log['global_batch_index']))
-                    key.extend(['total'] * len(log['global_batch_index']) + ['recon'] * len(log['global_batch_index']) + ['sparse'] * len(log['global_batch_index']))
-                    cost.extend([c] * 3 * len(log['global_batch_index']))
-                    lam.extend([l] * 3 * len(log['global_batch_index']))
+    m = params["model_type"]
+    for n in params["n_neurons"]:
+        for c in params["costs"]:
+            for idx, l in enumerate(params["lams"]):
+                mod_label = m+'_'+str(n)+'_'+c+'_'+l+'_'+params["version"] if m == 'lca' else m
+                log = lp.read_stats(lp.load_file(params["out_dir"]+mod_label+'/logfiles/'+mod_label+'.log')) 
+                global_batch_index.extend(list(log['global_batch_index'])*3)
+                loss.extend(log['total_loss'] + log['recon_loss'] + log['sparse_loss'])
+                model.extend([mod_label] * 3 * len(log['global_batch_index']))
+                key.extend(['total'] * len(log['global_batch_index']) + ['recon'] * len(log['global_batch_index']) + ['sparse'] * len(log['global_batch_index']))
+                cost.extend([c] * 3 * len(log['global_batch_index']))
+                lam.extend([l] * 3 * len(log['global_batch_index']))
     stats = pd.DataFrame({'model': model, 'global_batch_index': global_batch_index, 'loss': loss, 'key': key, 'cost': cost, 'lambda': lam})
     sns.set_style("darkgrid")
     p = sns.lmplot('global_batch_index', 'loss', data=stats, row='lambda', col='cost',  hue='key', lowess=True, scatter_kws={"s": 3})
     p.map(plt.plot, 'global_batch_index', 'loss', marker="o", ms=2) 
+    return global_batch_index[-1]
     
 def print_model_sched(params, print_params=False):
-    for m in params["mod_names"]:
-        for n in params["n_neurons"]:
-            for c in params["costs"]:
-                for l in params["lams"]:
-                    model_name = m+'_'+str(n)+'_'+c+'_'+l+'_'+params["version"] if m == "lca" else m
-                    print(model_name+':') 
-                    print(lp.read_schedule(lp.load_file(params['out_dir']+model_name+'/logfiles/'+model_name+'.log')))
-                    if print_params == True:
-                        print(lp.read_params(lp.load_file(params['out_dir']+model_name+'/logfiles/'+model_name+'.log')))
+    m = params["model_type"]
+    for n in params["n_neurons"]:
+        for c in params["costs"]:
+            for l in params["lams"]:
+                model_name = m+'_'+str(n)+'_'+c+'_'+l+'_'+params["version"] if m == "lca" else m
+                print(model_name+':') 
+                print(lp.read_schedule(lp.load_file(params['out_dir']+model_name+'/logfiles/'+model_name+'.log')))
+                if print_params == True:
+                    print(lp.read_params(lp.load_file(params['out_dir']+model_name+'/logfiles/'+model_name+'.log')))
 
 def draw_image(*args, **kwargs):
     data = kwargs.pop('data')
