@@ -74,7 +74,7 @@ def plot_coeff_hists(params):
                         mod_label = m
                     if m == "rg":
                         logs = pickle.load(open(params['out_dir'], 'rb'))
-                        coeffs = logs['coded_patches']
+                        coeffs = logs['coded_patches'].T
                     else:
                         with np.load(params["out_dir"]+'coeffs/'+mod_label+'_coeffs.npz') as d:  
                             coeffs = d['arr_0']
