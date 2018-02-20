@@ -3,9 +3,16 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 import utils.data_processing as dp
+import utils.rate_distortion as rd
 import pandas as pd
 import seaborn as sns
 import h5py
+import pickle
+import sys
+from skimage.measure import compare_ssim as ssim
+rg_install_dir = '/home/sanborn/packages/rg-toolbox/'
+sys.path.append(rg_install_dir)
+from rg_toolbox.core.invert_rg import invert_rg
 
 """""""""
 RD ANALYSIS PLOTS
@@ -199,4 +206,85 @@ def print_mse(params):
                     recon = reconstruct_img(np.matmul(coeffs, weights.T), params)
                     orig_img = reconstruct_img(orig_img, params)
                     print(name + ': '+ str(np.mean((orig_img - recon)**2)))
-                    
+
+def plot_bases(weights, padding=None):
+    """
+    Plot all bases:
+    weights: [np.ndarray] with shape [num_inputs, num_outputs]
+      num_inputs must have even square root.
+    """
+    num_inputs, num_outputs = weights.shape
+    assert np.sqrt(num_inputs) == np.floor(np.sqrt(num_inputs)), (
+    "weights.shape[0] must have an even square root.")
+    patch_edge_size = int(np.sqrt(num_inputs))
+    fig, ax = plt.subplots(figsize=(64,64))
+    plot_data = pad_data(weights.T.reshape((num_outputs, patch_edge_size,
+    patch_edge_size)))
+    bf_axis_image = ax.imshow(plot_data, cmap="Greys_r",
+    interpolation="nearest")
+    ax.tick_params(axis="both", bottom="off", top="off", left="off",
+    right="off")
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+    ax.set_title("Basis Functions", fontsize=32)
+
+def discretize_and_recon(params):
+    ## Load in data and reconstruct whole image
+    with np.load(params["input_dir"]) as d:
+        data = d['arr_0'].item()['train']
+        orig_img = data.images
+    if params["white"] == True:
+        orig_img = np.matmul(orig_img, np.linalg.inv(data.w_filter))
+        orig_img += data.patch_means
+    reshape = (orig_img.shape[0], params['patch_edge_size'], params['patch_edge_size'])
+    orig_img = np.reshape(orig_img, reshape) 
+    orig_img = dp.patches_to_image(orig_img, params['num_im'], params['im_edge_size'])
+    data_range = np.max(orig_img) - np.min(orig_img)
+    
+    ## Load in model coeffs and weights
+    if params['model_type'] == 'rg':
+        logs = pickle.load(open(params['out_dir'], 'rb'))
+        coeffs = logs['coded_patches']
+        radial_scalings = logs['radial_scalings']
+        p_whitening = logs['p_whitening']
+        name = params['model_type']
+    else:
+        if params['model_type'] == 'lca':
+            name = params['model_type']+'_'+str(params['n_neurons'])+'_'+params['cost']+'_'+str(params['lam'])+'_'+params['version']
+        elif params['model_type'] == 'ica': 
+            name = params['model_type'] + '_' + params['version']
+        else: 
+            name = params['model_type']
+        with np.load(params["out_dir"]+name+'_coeffs.npz') as d:
+            coeffs = d["arr_0"]
+        with np.load(params["out_dir"]+name+'_weights.npz') as d:
+            weights = d["arr_0"]
+    p_active =  str(round((np.count_nonzero(coeffs) / (coeffs.shape[0] * coeffs.shape[1])), 4)*100) + '%'   
+    
+    ## Create plot
+    plt.rcParams["figure.figsize"] = params["fig_size"]
+    fig, axes = plt.subplots(nrows=len(params["n_bins"])+1)
+    axes[0].imshow(orig_img, cmap="Greys_r")
+    axes[0].set_title(name + '\n p active: ' + p_active + '\n \n ' + 'original image')
+    
+    ## Generate reconstructions for quantized coeffs and plot
+    MSE = []; PSNR = []; MSSIM = []
+    for i, n_bins in enumerate(params['n_bins']):
+        disc_coeffs, H = rd.discretize_coeffs(coeffs, n_bins, params['disc_type'])
+        if params['model_type'] == 'rg':
+            recon = invert_rg(disc_coeffs, radial_scalings, p_whitening).T
+        else:
+            recon = np.matmul(disc_coeffs, weights.T)
+        if params["white"] == True:
+            recon = np.matmul(recon, np.linalg.inv(data.w_filter))
+            recon += data.patch_means
+        recon = np.reshape(recon, reshape)
+        recon = dp.patches_to_image(recon, params['num_im'], params['im_edge_size'])
+        axes[i+1].imshow(recon, cmap="Greys_r")
+        mse = np.mean((orig_img - recon)**2)
+        struc_sim = ssim(orig_img, recon, data_range=data_range)
+        psnr = np.mean(10 * np.log10(np.max(orig_img) ** 2 / mse)) 
+        MSE.append(mse); PSNR.append(psnr); MSSIM.append(struc_sim)
+        axes[i+1].set_title('n_bins: ' + str(n_bins) + '\n mse: ' + str(mse) + '\n psnr: ' + str(psnr) + '\n mssim: ' + str(struc_sim) + '\n transmission rate: ' + str(H  * params['n_neurons'] / 256))
+    stats = {'mse': MSE, 'psnr': PSNR, 'mssim': MSSIM}
+    return stats
