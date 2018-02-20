@@ -61,18 +61,26 @@ def full_comparison_plots(lca_table, alt_1=None, alt_2=None, alt_3=None, alt_4=N
             a.plot(alt_4[x], alt_4[y].where(alt_4.n_bins>1), marker="s", color="black", linestyle="-.", ms=2) 
             
 def plot_coeff_hists(params):
-    fig, axes = plt.subplots(nrows=len(params["lams"]), ncols=len(params["costs"]), figsize=params["figsize"])
+    fig, axes = plt.subplots(nrows=len(params["lams"]), ncols=len(params["costs"]), squeeze=False, figsize=params["figsize"])
     for m in params["mod_names"]:
         for n in params["n_neurons"]:
             for j, c in enumerate(params["costs"]):
                 for i, l in enumerate(params["lams"]):
-                    mod_label = m+'_'+str(n)+'_'+c+'_'+l+'_'+params['version']
-                    with np.load(params["out_dir"]+'coeffs/'+mod_label+'_coeffs.npz') as d:  
-                        coeffs = d['arr_0']
+                    if m == "lca":
+                        mod_label = m+'_'+str(n)+'_'+c+'_'+l+'_'+params['version']
+                    else: 
+                        mod_label = m+'_'+params["version"]
+                    if m == "rg":
+                        logs = pickle.load(open(params['out_dir'], 'rb'))
+                        coeffs = logs['coded_patches']
+                    else:
+                        with np.load(params["out_dir"]+'coeffs/'+mod_label+'_coeffs.npz') as d:  
+                            coeffs = d['arr_0']
                     axes[i][j].hist(coeffs[0:1000].ravel(), bins=100)
                     axes[i][j].set_yticks([])
                     axes[i][j].set_xlim(params["xlim"])
-                    axes[i][j].set_title('cost: ' + c + ' | lambda: ' + l)
+                    if c is not None:
+                        axes[i][j].set_title('cost: ' + c + ' | lambda: ' + l)
                     
 def batch_plot_model_grads(params):
     global_batch_index = []; gradients = []; key = []; model = []; lam = []; cost = []
