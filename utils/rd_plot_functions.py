@@ -68,15 +68,17 @@ def plot_coeff_hists(params):
                 for i, l in enumerate(params["lams"]):
                     if m == "lca":
                         mod_label = m+'_'+str(n)+'_'+c+'_'+l+'_'+params['version']
-                    else: 
+                    elif m == "ica": 
                         mod_label = m+'_'+params["version"]
+                    else:
+                        mod_label = m
                     if m == "rg":
                         logs = pickle.load(open(params['out_dir'], 'rb'))
                         coeffs = logs['coded_patches']
                     else:
                         with np.load(params["out_dir"]+'coeffs/'+mod_label+'_coeffs.npz') as d:  
                             coeffs = d['arr_0']
-                    axes[i][j].hist(coeffs[0:1000].ravel(), bins=100)
+                    axes[i][j].hist(coeffs[0:params["n_patches"]].ravel(), bins=params["n_bins"])
                     axes[i][j].set_yticks([])
                     axes[i][j].set_xlim(params["xlim"])
                     if c is not None:
