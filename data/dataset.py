@@ -46,9 +46,9 @@ class Dataset(object):
     if "whiten_data" in params.keys():
       if params["whiten_data"]:
         if "whiten_method" in params.keys():
-          self.images = dp.whiten_data(self.images, method=params["whiten_method"])
+          self.images, self.w_filter = dp.whiten_data(self.images, method=params["whiten_method"])
         else:
-          self.images = dp.whiten_data(self.images)
+          self.images, self.w_filter = dp.whiten_data(self.images)
     if "standardize_data" in params.keys():
       if params["standardize_data"]:
         self.images = dp.standardize_data(self.images)
