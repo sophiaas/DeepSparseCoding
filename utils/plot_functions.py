@@ -766,3 +766,24 @@ def clear_axis(ax, spines="none"):
   ax.get_yaxis().set_visible(False)
   ax.tick_params(axis="both", bottom="off", top="off", left="off", right="off")
   return ax
+
+def plot_bases(weights, padding=None):
+    """
+    Plot all bases:
+    weights: [np.ndarray] with shape [num_inputs, num_outputs]
+      num_inputs must have even square root.
+    """
+    num_inputs, num_outputs = weights.shape
+    assert np.sqrt(num_inputs) == np.floor(np.sqrt(num_inputs)), (
+    "weights.shape[0] must have an even square root.")
+    patch_edge_size = int(np.sqrt(num_inputs))
+    fig, ax = plt.subplots(figsize=(64,64))
+    plot_data = pad_data(weights.T.reshape((num_outputs, patch_edge_size,
+    patch_edge_size)))
+    bf_axis_image = ax.imshow(plot_data, cmap="Greys_r",
+    interpolation="nearest", vmin=-.6, vmax=1)
+    ax.tick_params(axis="both", bottom="off", top="off", left="off",
+    right="off")
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+    ax.set_title("Basis Functions", fontsize=32)
