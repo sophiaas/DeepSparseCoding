@@ -90,7 +90,7 @@ def batch_plot_model_grads(params):
     for n in params["n_neurons"]:
         for c in params["costs"]:
             for idx, l in enumerate(params["lams"]):
-                mod_label = m+'_'+str(n)+'_'+c+'_'+l+'_'+params["version"] if m == 'lca' else m
+                mod_label = m+'_'+str(n)+'_'+c+'_'+l+'_'+params["version"] if m == 'lca' else m+'_'+params['version']
                 log = lp.read_stats(lp.load_file(params["out_dir"]+mod_label+'/logfiles/'+mod_label+'.log')) 
                 global_batch_index.extend(log['global_batch_index'])
                 global_batch_index.extend(log['global_batch_index'])
@@ -115,12 +115,12 @@ def batch_plot_model_grads(params):
     return global_batch_index[-1]
     
 def batch_plot_model_loss(params):
-    global_batch_index = []; activity = []; loss = []; key = []; model = []; lam = []; cost = []
+    global_batch_index = []; loss = []; key = []; model = []; lam = []; cost = []
     m = params["model_type"]
     for n in params["n_neurons"]:
         for c in params["costs"]:
             for idx, l in enumerate(params["lams"]):
-                mod_label = m+'_'+str(n)+'_'+c+'_'+l+'_'+params["version"] if m == 'lca' else m
+                mod_label = m+'_'+str(n)+'_'+c+'_'+l+'_'+params["version"] if m == 'lca' else m+'_'+params['version']
                 log = lp.read_stats(lp.load_file(params["out_dir"]+mod_label+'/logfiles/'+mod_label+'.log')) 
                 global_batch_index.extend(list(log['global_batch_index'])*3)
                 loss.extend(log['total_loss'] + log['recon_loss'] + log['sparse_loss'])
@@ -132,6 +132,25 @@ def batch_plot_model_loss(params):
     sns.set_style("darkgrid")
     p = sns.lmplot('global_batch_index', 'loss', data=stats, row='lambda', col='cost',  hue='key', lowess=True, scatter_kws={"s": 3})
     p.map(plt.plot, 'global_batch_index', 'loss', marker="o", ms=2) 
+    return global_batch_index[-1]
+
+def batch_plot_activity(params):
+    global_batch_index = []; activity = []; model = []; lam = []; cost = []
+    m = params["model_type"]
+    for n in params["n_neurons"]:
+        for c in params["costs"]:
+            for idx, l in enumerate(params["lams"]):
+                mod_label = m+'_'+str(n)+'_'+c+'_'+l+'_'+params["version"] if m == 'lca' else m+'_'+params['version']
+                log = lp.read_stats(lp.load_file(params["out_dir"]+mod_label+'/logfiles/'+mod_label+'.log')) 
+                global_batch_index.extend(list(log['global_batch_index']))
+                activity.extend(log["a_fraction_active"])
+                model.extend([mod_label] * len(log['global_batch_index']))
+                cost.extend([c] * len(log['global_batch_index']))
+                lam.extend([l] * len(log['global_batch_index']))
+    stats = pd.DataFrame({'model': model, 'global_batch_index': global_batch_index, 'activity': activity, 'cost': cost, 'lambda': lam})
+    sns.set_style("darkgrid")
+    p = sns.lmplot('global_batch_index', 'activity', data=stats, row='lambda', col='cost', lowess=True, scatter_kws={"s": 3})
+    p.map(plt.plot, 'global_batch_index', 'activity', marker="o", ms=2) 
     return global_batch_index[-1]
     
 def print_model_sched(params, print_params=False):
