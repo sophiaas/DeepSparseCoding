@@ -161,14 +161,14 @@ class Model(object):
 
   def init_logging(self):
     """Logging to track run statistics"""
-    #for handler in logging.root.handlers[:]: # prevent overwriting previous logs
-    #  logging.root.removeHandler(handler)
+    for handler in logging.root.handlers[:]: # prevent overwriting previous logs
+      logging.root.removeHandler(handler)
     logging_level = logging.INFO
     log_format = ("%(asctime)s.%(msecs)03d"
       +" -- %(message)s")
     date_format = "%m-%d-%Y %H:%M:%S"
     if self.log_to_file:
-      log_filename = self.log_dir+self.model_name+"_v"+self.version+".log"
+      log_filename = self.log_dir+self.model_name+".log"
       logging.basicConfig(filename=log_filename, format=log_format,
         datefmt=date_format, filemode="w", level=logging.INFO)
     else:
@@ -444,7 +444,7 @@ class Model(object):
     for key in dataset.keys():
       if "center_data" in params.keys() and params["center_data"]:
         dataset[key].images, dataset[key].data_mean = dp.center_data(dataset[key].images,
-          use_dataset_mean=True)
+          use_dataset_mean=False)
         self.data_mean = dataset[key].data_mean
       if "whiten_data" in params.keys() and params["whiten_data"]:
         if "whiten_method" in params.keys():
@@ -491,6 +491,10 @@ class Model(object):
           dp.standardize_data(dataset[key].images)
         self.data_mean = dataset[key].data_mean
         self.data_std = dataset[key].data_std
+      if "center_patches" in params.keys() and params["center_patches"]:
+        dataset[key].images, dataset[key].data_mean = dp.center_data(dataset[key].images,
+          use_dataset_mean=False)
+        self.data_mean = dataset[key].data_mean
     return dataset
 
   def print_update(self, input_data, input_labels=None, batch_step=0):

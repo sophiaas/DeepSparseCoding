@@ -60,8 +60,9 @@ def reshape_data(data, flatten=None, out_shape=None):
       num_channels = 1
     else:
       if out_shape is not None:
-        num_rows, num_cols, num_channels = out_shape
-        data = data.reshape((num_examples, num_rows, num_cols, num_channels))
+        ##changed the shape of out_shape##
+        n, num_rows, num_cols, num_channels = out_shape
+        data = data.reshape((n, num_rows, num_cols, num_channels))
       else:
         sqrt_num_elements = np.sqrt(num_elements)
         assert np.floor(sqrt_num_elements) == np.ceil(sqrt_num_elements), (
@@ -627,14 +628,14 @@ def normalize_data_with_max(data):
     norm_data: [np.ndarray] normalized data
     data_max: [float] max that was divided out
   """
-  if np.max(np.abs(data)) > 0:
-    data_max = np.max(np.abs(data))
+  data_max = np.max(np.abs(data))
+  if data_max > 0:
     norm_data = data / data_max
   else:
     norm_data = data
   return norm_data, data_max
 
-def center_data(data, use_dataset_mean=False):
+def center_data(data, use_dataset_mean=False, use_matrix_mean=False):
   """
   Subtract individual example mean from data
   Inputs:
@@ -650,6 +651,10 @@ def center_data(data, use_dataset_mean=False):
   """
   if use_dataset_mean or data.ndim == 1:
     data_mean = np.mean(data)
+    data -= data_mean
+  elif use_matrix_mean:
+    data = reshape_data(data, flatten=False)[0]
+    data_mean = np.mean(data, axis=0)
     data -= data_mean
   else:
     data = reshape_data(data, flatten=None)[0] # reshapes to 4D (not flat) or 2D (flat)
@@ -672,7 +677,8 @@ def standardize_data(data):
   else:
     data = reshape_data(data, flatten=None)[0] # reshapes to 4D (not flat) or 2D (flat)
     data_axis=tuple(range(data.ndim)[1:])
-    data_std = np.maximum(np.std(data, axis=data_axis, keepdims=True), 1.0/np.sqrt(data[0,...].size))
+    data_std = np.std(data, axis=data_axis, keepdims=True)
+    #data_std = np.maximum(np.std(data, axis=data_axis, keepdims=True), 1.0/np.sqrt(data[0,...].size)) #confused by this line. It results in non-unit variance in some cases
     data_mean = np.mean(data, axis=data_axis, keepdims=True)
     data = (data - data_mean) /  data_std
   return data, data_mean, data_std
@@ -747,7 +753,21 @@ def whiten_data(data, method="FT"):
     data_wht = reshape_data(data_wht, not flatten, out_shape=orig_shape[1:])[0]
   return data_wht, data_mean, w_filter
 
-def unwhiten_data(data, data_mean, w_filter, method="FT"):
+# def unwhiten_bf(padded_bf):
+#     nyq = np.int32(np.floor(1024/2))
+#     freqs = np.linspace(-nyq, nyq-1, num=1024)
+#     fspace = np.meshgrid(freqs, freqs)
+#     rho = np.sqrt(np.square(fspace[0]) + np.square(fspace[1]))
+#     invw_filter = np.zeros(rho.shape)
+#     for i, a in enumerate(rho):
+#         for j, b in enumerate(a):
+#             invw_filter[i, j] = b ** -1 if b != 0 else 0
+#     unwhite = np.fft.fftshift(np.fft.fft2(padded_bf, axes=(0,1)))
+#     unwhite = np.multiply(unwhite, invw_filter)
+#     unwhite = np.real(np.fft.ifft2(np.fft.ifftshift(unwhite)))
+#     return unwhite
+    
+def unwhiten_data(data, data_mean=None, invw_filter=None, method="FT", dataset=True, input_patches=True, return_patches=False):
   """
   Unwhiten data
   Inputs:
@@ -763,26 +783,67 @@ def unwhiten_data(data, data_mean, w_filter, method="FT"):
   if method.upper() == "FT":
     flatten=False
     (data, orig_shape, num_examples, num_rows) = reshape_data(data, flatten)[0:4]
-    data = np.fft.fftshift(np.fft.fft2(data, axes=(1,2,3)), axes=(1,2,3))
-    data = np.multiply(data, (w_filter[None, ..., None]+1e-8)**-1)
-    data = np.real(np.fft.ifft2(np.fft.ifftshift(data, axes=(1,2,3)), axes=(1,2,3)))
-    data += data_mean
+    nyq = np.int32(np.floor(1024/2))
+    freqs = np.linspace(-nyq, nyq-1, num=1024)
+    fspace = np.meshgrid(freqs, freqs)
+    rho = np.sqrt(np.square(fspace[0]) + np.square(fspace[1]))
+    if invw_filter is None:
+        invw_filter = np.zeros(rho.shape)
+        for i, a in enumerate(rho):
+            for j, b in enumerate(a):
+                invw_filter[i, j] = b ** -1 if b != 0 else 0
+    if input_patches:
+        unwhiten_dim = [int(np.prod(orig_shape) / np.prod(invw_filter.shape)), invw_filter.shape[0], invw_filter.shape[1], 1]
+        data = patches_to_image(data, unwhiten_dim)
+    for i, img in enumerate(data):
+        unwhite = np.fft.fftshift(np.fft.fft2(img.squeeze()))
+        unwhite = np.multiply(unwhite, invw_filter)
+        unwhite = np.real(np.fft.ifft2(np.fft.ifftshift(unwhite)))
+        if data_mean is not None:
+            unwhite += data_mean[i].squeeze()
+        data[i] = unwhite[:,:,None]
+    if return_patches:
+        if len(orig_shape) == 2:
+            patch_dim = [orig_shape[0], int(np.sqrt(orig_shape[1])), int(np.sqrt(orig_shape[1])), 1]
+        elif len(orig_shape) == 3:
+            patch_dim = list(orig_shape) + [1]
+        else:
+            patch_dim = orig_shape
+        data = extract_patches(data, patch_dim)
+    ####
+#     flatten=False
+#     (data, orig_shape, num_examples, num_rows) = reshape_data(data, flatten)[0:4]
+#     filter_shape = w_filter.shape
+#     unwhiten_dim = [int(np.prod(orig_shape) / np.prod(filter_shape)), filter_shape[0], filter_shape[1], 1]
+#     data = patches_to_image(data, unwhiten_dim)
+#     data = np.fft.fftshift(np.fft.fft2(data, axes=(1,2,3)), axes=(1,2,3))
+#     data = np.multiply(data, (w_filter[None, ..., None]+1e-8)**-1)
+#     data = np.real(np.fft.ifft2(np.fft.ifftshift(data, axes=(1,2,3)), axes=(1,2,3)))
+#     data += data_mean
+#     if len(orig_shape) == 2:
+#         patch_dim = [orig_shape[0], int(np.sqrt(orig_shape[1])), int(np.sqrt(orig_shape[1])), 1]
+#     elif len(orig_shape) == 3:
+#         patch_dim = list(orig_shape) + [1]
+#     else:
+#         patch_dim = orig_shape
+#     data = extract_patches(data, patch_dim)
   elif method.upper() == "PCA":
     flatten=True
     (data, orig_shape, num_examples, num_rows) = reshape_data(data, flatten)[0:4]
     u, sqrtS = w_filter
     data = np.dot(data, np.dot(u, sqrtS).T)
+    data += data_mean  
   elif method.upper() == "ZCA":
     flatten=True
     (data, orig_shape, num_examples, num_rows) = reshape_data(data, flatten)[0:4]
     u, s = w_filter
     unwhiten_filter = np.dot(np.dot(u, s), u.T)
     data = np.dot(data, unwhiten_filter)
+    data += data_mean 
   else:
     assert False, ("whitening method must be 'FT', 'PCA', or 'ZCA'")
-  data += data_mean
-  if data.shape != orig_shape:
-    data = reshape_data(data, not flatten, out_shape=orig_shape[1:])[0]
+#   if data.shape != orig_shape:
+#     data = reshape_data(data, not flatten, out_shape=orig_shape[1:])[0]
   return data
 
 def generate_local_contrast_normalizer(radius=12):
@@ -809,14 +870,14 @@ def contrast_normalize(data, gauss_patch_size=12):
       (k) - single data point of length k
     gauss_patch_size: [int] indicates radius of Gaussian function
   """
-  (data, orig_shape, num_examples, num_rows, num_cols) = reshape_data(data,
+  (data, orig_shape, num_examples, num_rows, num_cols, num_channels) = reshape_data(data,
     flatten=False) # Need spatial dim for 2d-Fourier transform
   pooler = generate_local_contrast_normalizer(gauss_patch_size)
   for ex in range(num_examples):
-    example = data[ex, ...]
+    example = np.squeeze(data[ex, ...])
     localIntensityEstimate = scipy.signal.convolve2d(np.square(example), pooler, mode='same')
     normalizedData = np.divide(example, np.sqrt(localIntensityEstimate))
-    data[ex, ...] = normalizedData
+    data[ex, ...] = normalizedData[:, :, None]
   if data.shape != orig_shape:
     data = reshape_data(data, flatten=True, out_shape=orig_shape[1:])[0]
   return data

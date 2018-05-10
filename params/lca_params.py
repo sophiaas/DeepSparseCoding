@@ -18,8 +18,8 @@ params = {
   "batch_size": 100,
   "num_neurons": 512,
   "num_steps": 40,
-  "dt": 0.001,
-  "tau": 0.03,
+  "dt": 0.0012,
+  "tau": 0.012,
   "rectify_a": True,
   "norm_weights": True,
   "thresh_type": "soft",
@@ -27,19 +27,20 @@ params = {
   "cp_int": 10000,
   "max_cp_to_keep": 1,
   "cp_load": False,
-  "cp_load_name": "pretrain_mnist",
-  "cp_load_step": 150000,
-  "cp_load_ver": "0.0",
+  "cp_load_name": "pretrain",
+  "cp_load_step": 100000,
+  "cp_load_ver": 1.0,
   "cp_load_var": ["phi"],
+  "cp_set_var": ["phi"],
   "log_int": 100,
   "log_to_file": True,
-  "gen_plot_int": 10000,
+  "gen_plot_int": 1000,
   "save_plots": True,
   "eps": 1e-12,
   "device": "/gpu:0",
-  "rand_seed": 1234567890,
-  "out_dir": os.path.expanduser("~")+"/Work/Projects/",
-  "data_dir": os.path.expanduser("~")+"/Work/Datasets/"}
+  "rand_seed": 1234567890}
+#   "out_dir": os.path.expanduser("~")+"/Work/Projects/",
+#   "data_dir": os.path.expanduser("~")+"/Work/Datasets/"}
 
 schedule = [
   {"weights": ["phi"],

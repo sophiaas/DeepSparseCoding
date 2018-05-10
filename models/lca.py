@@ -68,13 +68,29 @@ class LCA(Model):
           tf.where(tf.less(u_in, -self.sparse_mult),
           tf.add(u_in, self.sparse_mult),
           self.u_zeros))
+#         pos = tf.where(tf.greater(u_in, self.sparse_mult),
+#           tf.subtract(u_in, self.sparse_mult), self.u_zeros)
+#         neg = tf.where(tf.less(u_in, -self.sparse_mult),
+#           tf.add(u_in, self.sparse_mult),
+#           self.u_zeros)
+#         a_out = tf.add(pos, neg)
     elif self.thresh_type == "hard":
       if self.rectify_a:
         a_out = tf.where(tf.greater(u_in, self.sparse_mult), u_in,
           self.u_zeros)
       else:
+        #original
         a_out = tf.where(tf.greater(u_in, self.sparse_mult), u_in,
           tf.where(tf.less(u_in, -self.sparse_mult), u_in, self.u_zeros))
+        #take1
+#         pos = tf.where(tf.greater(u_in, self.sparse_mult), u_in, self.u_zeros)
+#         a_out = tf.where(tf.less(u_in, -self.sparse_mult), u_in, pos)
+        #take2
+        #pos = tf.where(tf.greater(u_in, self.sparse_mult), u_in, self.u_zeros)
+        #neg = tf.where(tf.less(u_in, -self.sparse_mult), u_in, self.u_zeros)
+        #a_out = tf.add(pos, neg)
+        #take3
+        #a_out = tf.where(tf.logical_or(tf.greater(u_in, self.sparse_mult), tf.less(u_in, -self.sparse_mult)), u_in, self.u_zeros)
     return a_out
 
   def infer_coefficients(self):
@@ -227,7 +243,7 @@ class LCA(Model):
     weights = dp.reshape_data(weights.T, flatten=False)[0]
     fig = pf.plot_data_tiled(input_data, normalize=False,
       title="Images at step "+current_step, vmin=None, vmax=None,
-      save_filename=(self.disp_dir+"images_"+self.version+"-"
+      save_filename=(self.disp_dir+"images_v"+self.version+"-"
       +current_step.zfill(5)+".png"))
     fig = pf.plot_data_tiled(weights, normalize=False,
       title="Dictionary at step "+current_step, vmin=None, vmax=None,
